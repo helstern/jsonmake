@@ -11,7 +11,7 @@ build:
 
 tag:
 	git tag -a v$(VERSION) -m "Release $(VERSION)"
-	git push origin $(VERSION)
+	git push origin v$(VERSION)
 
 
 release: build

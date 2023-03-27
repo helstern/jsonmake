@@ -1,13 +1,13 @@
 BINARY_NAME=jsonmake
-VERSION=v0.0.1
+VERSION=0.0.1
 RELEASE_NAME=$(VERSION)
 RELEASE_DESCRIPTION="Release $(VERSION)"
 GITHUB_USERNAME=$(shell git config --get remote.origin.url | sed -n 's/.*\/\/github\.com\/\([^/]*\)\/.*/\1/p')
 GITHUB_REPOSITORY=$(shell git config --get remote.origin.url | sed -n 's/.*\/\/github\.com\/[^/]*\/\([^/]*\)\.git.*/\1/p')
 
 build:
-	mkdir target
-	GOOS=linux GOARCH=amd64 go build -o target/$(BINARY_NAME)
+	mkdir -p target
+	GOOS=linux GOARCH=amd64 go build -o target/$(BINARY_NAME) main.go
 
 tag:
 	git tag -a v$(VERSION) -m "Release $(VERSION)"

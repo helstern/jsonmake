@@ -9,82 +9,89 @@ import (
 	"strings"
 )
 
-func composeJSON(jsonPaths []string) map[string]interface{} {
+func composeJSON(keys []string, values []string) interface{} {
 	result := make(map[string]interface{})
-	for _, path := range jsonPaths {
-		parts := strings.Split(path, ".")
+	for i, key := range keys {
+		value := getDefaultValue(values[i])
+		parts := strings.Split(key, ".")
 		current := result
-		for i, part := range parts[:len(parts)-1] {
-			if strings.HasPrefix(part, "[") && strings.HasSuffix(part, "]") {
-				indexStr := part[1 : len(part)-1]
-				var index int
-				if indexStr != "" {
-					var err error
-					index, err = strconv.Atoi(indexStr)
-					if err != nil {
-						panic(err)
-					}
-				} else {
-					// Append to the array if index is not specified
-					index = len(current)
+		for j, part := range parts[:len(parts)-1] {
+
+			// append to list
+			if strings.HasSuffix(part, "[]") {
+				arrKey := strings.TrimSuffix(part, "[]")
+				if _, ok := current[arrKey]; !ok {
+					current[arrKey] = make([]map[string]interface{}, 0)
+					
 				}
-				if i == len(parts)-2 {
-					current[index] = getDefaultValue(parts[len(parts)-1])
+				if arr, ok := current[arrKey].([]map[string]interface{}); ok {
+					next := make(map[string]interface{})
+					current[arrKey] = append(arr, next)
+					current = next
 				} else {
-					if _, ok := current[index]; !ok {
-						current[index] = make(map[string]interface{})
-					}
-					current = current[index].(map[string]interface{})
+					panic(fmt.Sprintf("expected an array, but found %T", current[arrKey]))
+				}
+			} else if strings.HasSuffix(part, "[-1]") {
+				arrKey := strings.TrimSuffix(part, "[-1]")
+				if arr, ok := current[arrKey].([]map[string]interface{}); ok {				
+					current = arr[len(arr)- 1 ]
+				} else {
+					panic(fmt.Sprintf("expected an array, but found %T", current[arrKey]))
 				}
 			} else {
 				if _, ok := current[part]; !ok {
 					current[part] = make(map[string]interface{})
 				}
-				current = current[part].(map[string]interface{})
-			}
-		}
-		lastPart := parts[len(parts)-1]
-		if strings.HasPrefix(lastPart, "[") && strings.HasSuffix(lastPart, "]") {
-			indexStr := lastPart[1 : len(lastPart)-1]
-			var index int
-			if indexStr != "" {
-				var err error
-				index, err = strconv.Atoi(indexStr)
-				if err != nil {
-					panic(err)
+				if m, ok := current[part].(map[string]interface{}); ok {
+					current = m
+				} else {
+					panic(fmt.Sprintf("expected a map, but found %T", current[part]))
 				}
-			} else {
-				// Append to the array if index is not specified
-				index = len(current)
 			}
-			current[index] = getDefaultValue(lastPart)
-		} else {
-			current[lastPart] = getDefaultValue(lastPart)
+			if j == len(parts)-2 {
+				lastPart := parts[len(parts)-1]
+				if strings.HasSuffix(lastPart, "[]") {
+					arrKey := strings.TrimSuffix(lastPart, "[]")
+					if _, ok := current[arrKey]; !ok {
+						current[arrKey] = make([]interface{}, 0)
+					}
+					if arr, ok := current[arrKey].([]interface{}); ok {
+						current[arrKey] = append(arr, value)
+					} else {
+						panic(fmt.Sprintf("expected an array, but found %T", current[arrKey]))
+					}
+				} else {
+					current[lastPart] = value
+				}
+			}
 		}
 	}
 	return result
 }
 
-func getDefaultValue(part string) interface{} {
-	if part == "null" {
+func getDefaultValue(value string) interface{} {
+	if value == "null" {
 		return nil
 	}
-	if i, err := strconv.Atoi(part); err == nil {
+	if i, err := strconv.Atoi(value); err == nil {
 		return i
 	}
-	return part
+	return value
 }
 
 func main() {
-	var paths []string
+	var keys []string
+	var values []string
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		paths = append(paths, scanner.Text())
+		pair := strings.Split(scanner.Text(), "=")
+		keys = append(keys, pair[0])
+		values = append(values, pair[1])
 	}
 	if err := scanner.Err(); err != nil {
 		panic(err)
 	}
-	jsonDocument := composeJSON(paths)
+	jsonDocument := composeJSON(keys, values)
 	jsonBytes, err := json.Marshal(jsonDocument)
 	if err != nil {
 		panic(err)
